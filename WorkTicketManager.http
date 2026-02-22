@@ -1,0 +1,6 @@
+@WorkTicketManager_HostAddress = http://localhost:5055
+
+GET {{WorkTicketManager_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
