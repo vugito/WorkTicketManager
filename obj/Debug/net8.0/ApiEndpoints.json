@@ -114,6 +114,22 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "HelpdeskWM.Program\u002B\u003C\u003Ec",
+    "Method": "\u003CMain\u003Eb__0_2",
+    "RelativePath": "api/health",
+    "HttpMethod": "GET",
+    "IsController": false,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "System.Void",
+        "MediaTypes": [],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
     "ContainingType": "WorkTicketManager.Controllers.PrioritiesController",
     "Method": "GetPriorities",
     "RelativePath": "api/priorities",
@@ -322,6 +338,22 @@
   },
   {
     "ContainingType": "WorkTicketManager.Controllers.TicketsController",
+    "Method": "DeleteTicket",
+    "RelativePath": "api/tickets/{id}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "WorkTicketManager.Controllers.TicketsController",
     "Method": "CloseTicket",
     "RelativePath": "api/tickets/{id}/close",
     "HttpMethod": "POST",
@@ -336,6 +368,27 @@
       {
         "Name": "dto",
         "Type": "WorkTicketManager.DTOs.CloseTicketDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "WorkTicketManager.Controllers.TicketsController",
+    "Method": "UpdatePriority",
+    "RelativePath": "api/tickets/{id}/priority",
+    "HttpMethod": "PATCH",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "WorkTicketManager.DTOs.UpdatePriorityDto",
         "IsRequired": true
       }
     ],

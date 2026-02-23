@@ -225,3 +225,4 @@ F:\PROJECTS\BackEnd\WorkTicketManager\obj\Debug\net8.0\refint\WorkTicketManager.
 F:\PROJECTS\BackEnd\WorkTicketManager\obj\Debug\net8.0\WorkTicketManager.pdb
 F:\PROJECTS\BackEnd\WorkTicketManager\obj\Debug\net8.0\WorkTicketManager.genruntimeconfig.cache
 F:\PROJECTS\BackEnd\WorkTicketManager\obj\Debug\net8.0\ref\WorkTicketManager.dll
+F:\PROJECTS\BackEnd\WorkTicketManager\obj\Debug\net8.0\WorkTicketManager.sourcelink.json

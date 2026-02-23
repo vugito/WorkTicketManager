@@ -41,7 +41,7 @@ namespace WorkTicketManager.Controllers
                 Deadline = t.Deadline,
                 Department = t.User?.Department?.Name ?? "",
                 User = t.User?.FullName ?? "",
-                Status = t.Status?.Name ?? "",
+                Status = t.Status?.Code ?? "",
                 Priority = t.Priority?.Name ?? "",
                 ProblemDescription = t.ProblemDescription,
                 Resolution = t.Resolution
@@ -101,7 +101,9 @@ namespace WorkTicketManager.Controllers
             if (!await _context.Users.AnyAsync(u => u.Id == dto.UserId))
                 return BadRequest("Invalid user");
 
-            if (!await _context.Priorities.AnyAsync(p => p.Id == dto.PriorityId))
+            //if (!await _context.Priorities.AnyAsync(p => p.Id == dto.PriorityId))
+            //    return BadRequest("Invalid priority");
+            if (dto.PriorityId.HasValue && !await _context.Priorities.AnyAsync(p => p.Id == dto.PriorityId))
                 return BadRequest("Invalid priority");
 
             var newStatus = await _context.Statuses.SingleOrDefaultAsync(s => s.Code == "NEW");
@@ -129,6 +131,22 @@ namespace WorkTicketManager.Controllers
                 new { id = ticket.Id },
                 ToDto(createdTicket!)
             );
+        }
+
+        // =====================
+        // DELETE: Delete Ticket
+        // =====================
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteTicket(int id)
+        {
+            var ticket = await _context.Tickets.FindAsync(id);
+            if (ticket == null)
+                return NotFound("Ticket not found");
+
+            _context.Tickets.Remove(ticket);
+            await _context.SaveChangesAsync();
+            return NoContent();
         }
 
         // =====================
@@ -175,6 +193,24 @@ namespace WorkTicketManager.Controllers
             ticket.CompletedAt = DateTime.UtcNow;
             ticket.Resolution = dto.Resolution;
 
+            await _context.SaveChangesAsync();
+            return Ok(ToDto(ticket));
+        }
+
+        // =====================
+        // PATCH: Close Ticket
+        // =====================
+        [HttpPatch("{id}/priority")]
+        public async Task<IActionResult> UpdatePriority(int id, [FromBody] UpdatePriorityDto dto)
+        {
+            var ticket = await FindTicketAsync(id);
+            if (ticket == null)
+                return NotFound("Ticket not found");
+
+            if (dto.PriorityId.HasValue && !await _context.Priorities.AnyAsync(p => p.Id == dto.PriorityId))
+                return BadRequest("Invalid priority");
+
+            ticket.PriorityId = dto.PriorityId;
             await _context.SaveChangesAsync();
             return Ok(ToDto(ticket));
         }

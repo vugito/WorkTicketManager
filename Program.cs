@@ -60,6 +60,8 @@ namespace HelpdeskWM
             }
 
             app.UseAuthorization();
+
+            app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
             app.MapControllers();
 
             app.Run();
