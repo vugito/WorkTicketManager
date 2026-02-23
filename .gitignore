@@ -1,0 +1,15 @@
+# Build results
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# ASP.NET
+appsettings.Development.json
+
+# OS
+.DS_Store
+Thumbs.db
