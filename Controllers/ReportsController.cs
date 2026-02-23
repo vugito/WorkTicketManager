@@ -45,6 +45,7 @@ namespace WorkTicketManager.Controllers
                 InProgressTickets = await query.CountAsync(t => t.Status!.Code == "IN_PROGRESS"),
                 ClosedTickets = await query.CountAsync(t => t.Status!.Code == "CLOSED"),
                 TicketsByDepartment = await query
+                    .Where(t => t.User != null && t.User.Department != null)
                     .GroupBy(t => t.User!.Department!.Name)
                     .Select(g => new { g.Key, Count = g.Count() })
                     .ToDictionaryAsync(x => x.Key, x => x.Count)

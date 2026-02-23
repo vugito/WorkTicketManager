@@ -49,6 +49,7 @@ namespace WorkTicketManager.Controllers
                 FullName = dto.FullName,
                 Phone = dto.Phone,
                 DepartmentId = dto.DepartmentId,
+                AnyDesk = dto.AnyDesk,
                 IsActive = true
             };
 
@@ -71,6 +72,7 @@ namespace WorkTicketManager.Controllers
             user.FullName = dto.FullName;
             user.Phone = dto.Phone;
             user.DepartmentId = dto.DepartmentId;
+            user.AnyDesk = dto.AnyDesk;
 
             await _context.SaveChangesAsync();
             return Ok(dto);

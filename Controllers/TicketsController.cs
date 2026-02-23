@@ -41,10 +41,12 @@ namespace WorkTicketManager.Controllers
                 Deadline = t.Deadline,
                 Department = t.User?.Department?.Name ?? "",
                 User = t.User?.FullName ?? "",
+                AnyDesk = t.User?.AnyDesk,
                 Status = t.Status?.Code ?? "",
                 Priority = t.Priority?.Name ?? "",
                 ProblemDescription = t.ProblemDescription,
                 Resolution = t.Resolution
+
             };
         }
 

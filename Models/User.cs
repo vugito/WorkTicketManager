@@ -14,6 +14,7 @@ namespace WorkTicketManager.Models
         public int? DepartmentId { get; set; }
 
         public Department? Department { get; set; }
+        public string? AnyDesk { get; set;  }
 
         public bool IsActive { get; set; } = true;
 
