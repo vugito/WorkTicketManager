@@ -29,7 +29,7 @@ namespace WorkTicketManager.Controllers
                     Id = u.Id,
                     FullName = u.FullName,
                     Phone = u.Phone,
-                    DepartmentId = u.DepartmentId,
+                    DepartmentId = u.DepartmentId ?? 0,
                     DepartmentName = u.Department!.Name
                 })
                 .ToListAsync();

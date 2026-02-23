@@ -11,7 +11,7 @@ namespace WorkTicketManager.Models
         public int Id { get; set; }
         public string FullName { get; set; } = null!;
         public string Phone { get; set; } = null!;
-        public int DepartmentId { get; set; }
+        public int? DepartmentId { get; set; }
 
         public Department? Department { get; set; }
 

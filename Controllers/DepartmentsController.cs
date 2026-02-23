@@ -45,11 +45,34 @@ namespace WorkTicketManager.Controllers
             return Ok(dep);
         }
 
+        //[HttpDelete("{id}")]
+        //public async Task<IActionResult> DeleteDepartment(int id)
+        //{
+        //    var dep = await _context.Departments.FindAsync(id);
+        //    if (dep == null) return NotFound();
+
+        //    _context.Departments.Remove(dep);
+        //    await _context.SaveChangesAsync();
+        //    return NoContent();
+        //}
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDepartment(int id)
         {
             var dep = await _context.Departments.FindAsync(id);
             if (dep == null) return NotFound();
+
+            var hasActiveUsers = await _context.Users.AnyAsync(u => u.DepartmentId == id && u.IsActive);
+            if (hasActiveUsers)
+                return BadRequest("Нельзя удалить отдел в котором есть активные сотрудники.");
+
+            // Деактивированных сотрудников отвязываем от отдела
+            var inactiveUsers = await _context.Users
+                .Where(u => u.DepartmentId == id && !u.IsActive)
+                .ToListAsync();
+
+            foreach (var user in inactiveUsers)
+                user.DepartmentId = null;
 
             _context.Departments.Remove(dep);
             await _context.SaveChangesAsync();
