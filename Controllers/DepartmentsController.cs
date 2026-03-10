@@ -18,6 +18,7 @@ namespace WorkTicketManager.Controllers
         public async Task<IActionResult> GetDepartments()
         {
             var departments = await _context.Departments
+                .OrderBy(d => d.Name)
                 .Select(d => new DepartmentDto { Id = d.Id, Name = d.Name })
                 .ToListAsync();
             return Ok(departments);

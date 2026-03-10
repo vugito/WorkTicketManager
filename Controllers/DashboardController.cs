@@ -93,6 +93,11 @@ namespace WorkTicketManager.Controllers
                     Priority = t.Priority!.Name,
                     ProblemDescription = t.ProblemDescription,
                     Resolution = t.Resolution,
+                    StartedAt = t.StartedAt,
+                    Deadline = t.Deadline,
+                    AnyDesk = t.User!.AnyDesk,
+                    UserPhone = t.User!.Phone,
+                    IpAddress = t.IpAddress,
                     CompletedAt = t.CompletedAt
                 })
                 .ToListAsync();

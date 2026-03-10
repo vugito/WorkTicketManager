@@ -120,6 +120,9 @@ namespace WorkTicketManager.Migrations
                     b.Property<DateTime?>("Deadline")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("IpAddress")
+                        .HasColumnType("text");
+
                     b.Property<int?>("PriorityId")
                         .HasColumnType("integer");
 
@@ -152,6 +155,31 @@ namespace WorkTicketManager.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Tickets");
+                });
+
+            modelBuilder.Entity("WorkTicketManager.Models.TicketComment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("TicketId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TicketId");
+
+                    b.ToTable("TicketComments");
                 });
 
             modelBuilder.Entity("WorkTicketManager.Models.User", b =>
@@ -212,6 +240,17 @@ namespace WorkTicketManager.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("WorkTicketManager.Models.TicketComment", b =>
+                {
+                    b.HasOne("WorkTicketManager.Models.Ticket", "Ticket")
+                        .WithMany("Comments")
+                        .HasForeignKey("TicketId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Ticket");
+                });
+
             modelBuilder.Entity("WorkTicketManager.Models.User", b =>
                 {
                     b.HasOne("WorkTicketManager.Models.Department", "Department")
@@ -235,6 +274,11 @@ namespace WorkTicketManager.Migrations
             modelBuilder.Entity("WorkTicketManager.Models.Status", b =>
                 {
                     b.Navigation("Tickets");
+                });
+
+            modelBuilder.Entity("WorkTicketManager.Models.Ticket", b =>
+                {
+                    b.Navigation("Comments");
                 });
 
             modelBuilder.Entity("WorkTicketManager.Models.User", b =>

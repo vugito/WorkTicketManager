@@ -45,8 +45,9 @@ namespace WorkTicketManager.Controllers
                 Status = t.Status?.Code ?? "",
                 Priority = t.Priority?.Name ?? "",
                 ProblemDescription = t.ProblemDescription,
-                Resolution = t.Resolution
-
+                Resolution = t.Resolution,
+                IpAddress = t.IpAddress,
+                UserPhone = t.User?.Phone
             };
         }
 
@@ -97,7 +98,9 @@ namespace WorkTicketManager.Controllers
         // =====================
         // POST: Create Ticket
         // =====================
+
         [HttpPost]
+        [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("tickets")]
         public async Task<ActionResult<TicketDto>> CreateTicket([FromBody] CreatedTicketDto dto)
         {
             if (!await _context.Users.AnyAsync(u => u.Id == dto.UserId))
@@ -112,6 +115,8 @@ namespace WorkTicketManager.Controllers
             if (newStatus == null)
                 return StatusCode(500, "Status NEW not found");
 
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+
             var ticket = new Ticket
             {
                 CreatedAt = DateTime.UtcNow,
@@ -119,7 +124,8 @@ namespace WorkTicketManager.Controllers
                 PriorityId = dto.PriorityId,
                 StatusId = newStatus.Id,
                 ProblemDescription = dto.ProblemDescription,
-                Deadline = dto.Deadline
+                Deadline = dto.Deadline,
+                IpAddress = ipAddress
             };
 
             _context.Tickets.Add(ticket);
@@ -215,6 +221,76 @@ namespace WorkTicketManager.Controllers
             ticket.PriorityId = dto.PriorityId;
             await _context.SaveChangesAsync();
             return Ok(ToDto(ticket));
+        }
+
+        // =====================
+        // PATCH: Update Deadline
+        // =====================
+        [HttpPatch("{id}/deadline")]
+        public async Task<IActionResult> UpdateDeadline(int id, [FromBody] UpdateDeadlineDto dto)
+        {
+            var ticket = await FindTicketAsync(id);
+            if (ticket == null)
+                return NotFound("Ticket not found");
+
+            ticket.Deadline = dto.Deadline.HasValue
+                ? DateTime.SpecifyKind(dto.Deadline.Value, DateTimeKind.Utc)
+                : null;
+
+            await _context.SaveChangesAsync();
+            return Ok(ToDto(ticket));
+        }
+
+        // =====================
+        // PATCH: Edit Ticket
+        // =====================
+        [HttpPatch("{id}/edit")]
+        public async Task<IActionResult> EditTicket(int id, [FromBody] EditTicketDto dto)
+        {
+            var ticket = await FindTicketAsync(id);
+            if (ticket == null)
+                return NotFound("Ticket not found");
+
+            // Описание проблемы
+            if (dto.ProblemDescription != null)
+                ticket.ProblemDescription = dto.ProblemDescription.Trim();
+
+            // Сотрудник/отдел
+            if (dto.UserId.HasValue)
+            {
+                if (!await _context.Users.AnyAsync(u => u.Id == dto.UserId))
+                    return BadRequest("Invalid user");
+                ticket.UserId = dto.UserId.Value;
+            }
+
+            // Решение
+            if (dto.Resolution != null)
+                ticket.Resolution = dto.Resolution.Trim();
+
+            // Статус вручную
+            if (dto.StatusCode != null)
+            {
+                var status = await _context.Statuses.SingleOrDefaultAsync(s => s.Code == dto.StatusCode);
+                if (status == null)
+                    return BadRequest("Invalid status");
+                ticket.StatusId = status.Id;
+
+                // Обновляем даты при смене статуса
+                if (dto.StatusCode == "IN_PROGRESS" && ticket.StartedAt == null)
+                    ticket.StartedAt = DateTime.UtcNow;
+                if (dto.StatusCode == "CLOSED" && ticket.CompletedAt == null)
+                    ticket.CompletedAt = DateTime.UtcNow;
+                if (dto.StatusCode == "NEW")
+                {
+                    ticket.StartedAt = null;
+                    ticket.CompletedAt = null;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            var updated = await FindTicketAsync(id);
+            return Ok(ToDto(updated!));
         }
     }
 }

@@ -1,4 +1,5 @@
 
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using WorkTicketManager.Data;
 using WorkTicketManager.Models;
@@ -17,6 +18,25 @@ namespace HelpdeskWM
             );
 
             builder.Services.AddControllers();
+            builder.Services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = 429;
+                options.OnRejected = async (context, token) =>
+                {
+                    context.HttpContext.Response.StatusCode = 429;
+                    context.HttpContext.Response.ContentType = "application/json";
+                    await context.HttpContext.Response.WriteAsync(
+                        "{\"error\": \"Слишком много заявок. Подождите минуту и попробуйте снова.\"}",
+                        token);
+                };
+                options.AddFixedWindowLimiter("tickets", limiter =>
+                {
+                    limiter.PermitLimit = 2;          // максимум 2 заявки
+                    limiter.Window = TimeSpan.FromMinutes(1); // в течение 1 минуты
+                    limiter.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+                    limiter.QueueLimit = 0;
+                });
+            });
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
@@ -60,6 +80,7 @@ namespace HelpdeskWM
             }
 
             app.UseAuthorization();
+            app.UseRateLimiter();
 
             app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
             app.MapControllers();

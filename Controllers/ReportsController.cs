@@ -54,5 +54,42 @@ namespace WorkTicketManager.Controllers
             return Ok(result);
         }
 
+        [HttpGet("chart")]
+        public async Task<IActionResult> GetChartData([FromQuery] string from, [FromQuery] string to)
+        {
+            if (!DateTime.TryParse(from, out var fromDate) || !DateTime.TryParse(to, out var toDate))
+                return BadRequest("Invalid date format");
+
+            fromDate = DateTime.SpecifyKind(fromDate.Date, DateTimeKind.Utc);
+            toDate = DateTime.SpecifyKind(toDate.Date.AddDays(1), DateTimeKind.Utc);
+
+            var tickets = await _context.Tickets
+                .Include(t => t.Status)
+                .Where(t => t.CreatedAt >= fromDate && t.CreatedAt < toDate)
+                .ToListAsync();
+
+            var days = new List<object>();
+            var current = fromDate;
+
+            while (current < toDate)
+            {
+                var next = current.AddDays(1);
+                var dayTickets = tickets.Where(t => t.CreatedAt >= current && t.CreatedAt < next).ToList();
+
+                days.Add(new
+                {
+                    date = current.ToString("dd.MM"),
+                    newTickets = dayTickets.Count(t => t.Status?.Code == "NEW"),
+                    inProgress = dayTickets.Count(t => t.Status?.Code == "IN_PROGRESS"),
+                    closed = dayTickets.Count(t => t.Status?.Code == "CLOSED"),
+                    total = dayTickets.Count
+                });
+
+                current = next;
+            }
+
+            return Ok(days);
+        }
+
     }
 }

@@ -32,5 +32,9 @@ namespace WorkTicketManager.Models
 
         public string? Resolution { get; set; }
 
+        public string? IpAddress { get; set; }
+
+        public ICollection<TicketComment> Comments { get; set; } = new List<TicketComment>();
+
     }
 }

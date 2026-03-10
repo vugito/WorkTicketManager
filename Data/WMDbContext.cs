@@ -13,6 +13,7 @@ namespace WorkTicketManager.Data
         public DbSet<Status> Statuses => Set<Status>();
         public DbSet<Priority> Priorities => Set<Priority>();
         public DbSet<Ticket> Tickets => Set<Ticket>();
+        public DbSet<TicketComment> TicketComments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

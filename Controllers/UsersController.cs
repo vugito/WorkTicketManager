@@ -24,6 +24,7 @@ namespace WorkTicketManager.Controllers
             var users = await _context.Users
                 .Include(u => u.Department)
                 .Where(u => u.IsActive)
+                .OrderBy(u => u.FullName)
                 .Select(u => new UserDto
                 {
                     Id = u.Id,

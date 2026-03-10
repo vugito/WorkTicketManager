@@ -17,5 +17,7 @@
         public string? ProblemDescription { get; set; } // удобно фронтенду
         public string? Resolution { get; set; }         // для CLOSED тикетов
         public string? AnyDesk { get; set; }
+        public string? IpAddress { get; set; }
+        public string? UserPhone { get; set; }
     }
 }
