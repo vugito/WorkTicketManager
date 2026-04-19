@@ -1,8 +1,11 @@
-
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using WorkTicketManager.Data;
 using WorkTicketManager.Models;
+using WorkTicketManager.Services;
 
 namespace HelpdeskWM
 {
@@ -12,12 +15,35 @@ namespace HelpdeskWM
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // --- Add services ---
+            // --- Database ---
             builder.Services.AddDbContext<WMDbContext>(options =>
                 options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
             );
 
+            // --- JWT Service ---
+            builder.Services.AddScoped<JwtService>();
+
+            // --- Authentication ---
+            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidateAudience = true,
+                        ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true,
+                        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+                        ValidAudience = builder.Configuration["Jwt:Audience"],
+                        IssuerSigningKey = new SymmetricSecurityKey(
+                            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+                    };
+                });
+
+            builder.Services.AddAuthorization();
+
             builder.Services.AddControllers();
+
             builder.Services.AddRateLimiter(options =>
             {
                 options.RejectionStatusCode = 429;
@@ -31,20 +57,45 @@ namespace HelpdeskWM
                 };
                 options.AddFixedWindowLimiter("tickets", limiter =>
                 {
-                    limiter.PermitLimit = 2;          // максимум 2 заявки
-                    limiter.Window = TimeSpan.FromMinutes(1); // в течение 1 минуты
+                    limiter.PermitLimit = 2;
+                    limiter.Window = TimeSpan.FromMinutes(1);
                     limiter.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
                     limiter.QueueLimit = 0;
                 });
             });
+
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
+            builder.Services.AddSwaggerGen(c =>
+            {
+                c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                {
+                    Name = "Authorization",
+                    Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+                    Scheme = "Bearer",
+                    BearerFormat = "JWT",
+                    In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+                    Description = "Введите: Bearer {токен}"
+                });
+                c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+                {
+                    {
+                        new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                        {
+                            Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                            {
+                                Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        Array.Empty<string>()
+                    }
+                });
+            });
 
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowFrontend", policy =>
                 {
-                    // В разработке можно AllowAnyOrigin, на продакшене лучше ограничить домен фронтенда
                     policy.AllowAnyOrigin()
                           .AllowAnyHeader()
                           .AllowAnyMethod();
@@ -53,7 +104,7 @@ namespace HelpdeskWM
 
             var app = builder.Build();
 
-            // --- Apply migrations & seed database ---
+            // --- Migrate & Seed ---
             using (var scope = app.Services.CreateScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<WMDbContext>();
@@ -64,8 +115,7 @@ namespace HelpdeskWM
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Ошибка при миграции или seed данных: " + ex.Message);
-                    // На продакшене возможно нужно логировать и продолжить работу
+                    Console.WriteLine("Ошибка при миграции или seed: " + ex.Message);
                 }
             }
 
@@ -79,6 +129,7 @@ namespace HelpdeskWM
                 app.UseSwaggerUI();
             }
 
+            app.UseAuthentication();
             app.UseAuthorization();
             app.UseRateLimiter();
 
@@ -88,32 +139,21 @@ namespace HelpdeskWM
             app.Run();
         }
 
-        // --- Метод для заполнения начальных данных ---
         private static void SeedDatabase(WMDbContext db)
         {
-            // Departments
-            if (!db.Departments.Any())
+            // Company
+            if (!db.Companies.Any())
             {
-                db.Departments.AddRange(
-                    new Department { Name = "Терапия" },
-                    new Department { Name = "Хирургия" },
-                    new Department { Name = "Регистратура" },
-                    new Department { Name = "Кардиология" },
-                    new Department { Name = "Администрация" }
-                );
+                db.Companies.Add(new Company
+                {
+                    Name = "Больница",
+                    Description = "Городская больница",
+                    IsActive = true
+                });
                 db.SaveChanges();
             }
 
-            // Users
-            if (!db.Users.Any())
-            {
-                db.Users.AddRange(
-                    new User { FullName = "Иванов Иван", Phone = "123456789", DepartmentId = 1, IsActive = true },
-                    new User { FullName = "Петров Пётр", Phone = "987654321", DepartmentId = 2, IsActive = true },
-                    new User { FullName = "Сидоров Сидор", Phone = "555666777", DepartmentId = 3, IsActive = true }
-                );
-                db.SaveChanges();
-            }
+            var company = db.Companies.First();
 
             // Priorities
             if (!db.Priorities.Any())
@@ -126,15 +166,31 @@ namespace HelpdeskWM
                 db.SaveChanges();
             }
 
-            // Statuses
-            if (!db.Statuses.Any())
+            // Departments
+            if (!db.Departments.Any())
             {
-                db.Statuses.AddRange(
-                    new Status { Name = "NEW", Code = "NEW" },
-                    new Status { Name = "IN_PROGRESS", Code = "IN_PROGRESS" },
-                    new Status { Name = "CLOSED", Code = "CLOSED" },
-                    new Status { Name = "DENIED", Code = "DENIED" }
+                db.Departments.AddRange(
+                    new Department { Name = "Терапия", CompanyId = company.Id },
+                    new Department { Name = "Хирургия", CompanyId = company.Id },
+                    new Department { Name = "Регистратура", CompanyId = company.Id },
+                    new Department { Name = "Кардиология", CompanyId = company.Id },
+                    new Department { Name = "Администрация", CompanyId = company.Id }
                 );
+                db.SaveChanges();
+            }
+
+            // SuperAdmin
+            if (!db.AppUsers.Any(u => u.SystemRole == SystemRole.SuperAdmin))
+            {
+                db.AppUsers.Add(new AppUser
+                {
+                    Username = "superadmin",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
+                    FullName = "Super Admin",
+                    SystemRole = SystemRole.SuperAdmin,
+                    CompanyId = null,
+                    IsActive = true
+                });
                 db.SaveChanges();
             }
         }

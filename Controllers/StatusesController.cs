@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WorkTicketManager.Data;
 using WorkTicketManager.DTOs;
@@ -7,6 +8,7 @@ namespace WorkTicketManager.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize] // ← весь контроллер защищён
     public class StatusesController : ControllerBase
     {
         private readonly WMDbContext _context;

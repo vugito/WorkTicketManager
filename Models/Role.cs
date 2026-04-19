@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace WorkTicketManager.Models
 {
-    public class Department
+    public class Role
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
@@ -12,11 +12,14 @@ namespace WorkTicketManager.Models
         [Required]
         public string Name { get; set; } = null!;
 
-        public int CompanyId { get; set; }
+        // JSON массив прав: ["tickets.view", "tickets.edit", ...]
+        public string Permissions { get; set; } = "[]";
+
+        public int? CompanyId { get; set; }
         public Company? Company { get; set; }
 
         public bool IsActive { get; set; } = true;
 
-        public ICollection<Employee> Employees { get; set; } = new List<Employee>();
+        public ICollection<AppUser> AppUsers { get; set; } = new List<AppUser>();
     }
 }

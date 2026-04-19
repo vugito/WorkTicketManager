@@ -2,12 +2,14 @@
 using WorkTicketManager.DTOs;
 using WorkTicketManager.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
 namespace WorkTicketManager.Controllers
 {
     [ApiController]
     [Route("api/tickets")]
+    [Authorize] // ← весь контроллер защищён
     public class TicketsController : ControllerBase
     {
         private readonly WMDbContext _context;
@@ -23,8 +25,8 @@ namespace WorkTicketManager.Controllers
         private async Task<Ticket?> FindTicketAsync(int ticketId)
         {
             return await _context.Tickets
-                .Include(t => t.User)
-                    .ThenInclude(u => u.Department)
+                .Include(t => t.Employee)
+                    .ThenInclude(e => e.Department)
                 .Include(t => t.Priority)
                 .Include(t => t.Status)
                 .FirstOrDefaultAsync(t => t.Id == ticketId);
@@ -39,15 +41,15 @@ namespace WorkTicketManager.Controllers
                 StartedAt = t.StartedAt,
                 CompletedAt = t.CompletedAt,
                 Deadline = t.Deadline,
-                Department = t.User?.Department?.Name ?? "",
-                User = t.User?.FullName ?? "",
-                AnyDesk = t.User?.AnyDesk,
+                Department = t.Employee?.Department?.Name ?? "",
+                User = t.Employee?.FullName ?? "",
+                AnyDesk = t.Employee?.AnyDesk,
                 Status = t.Status?.Code ?? "",
                 Priority = t.Priority?.Name ?? "",
                 ProblemDescription = t.ProblemDescription,
                 Resolution = t.Resolution,
                 IpAddress = t.IpAddress,
-                UserPhone = t.User?.Phone
+                UserPhone = t.Employee?.Phone
             };
         }
 
@@ -58,7 +60,7 @@ namespace WorkTicketManager.Controllers
         public async Task<ActionResult<IEnumerable<TicketDto>>> GetTickets([FromQuery] TicketFilterDto filter)
         {
             var query = _context.Tickets
-                .Include(t => t.User).ThenInclude(u => u.Department)
+                .Include(t => t.Employee).ThenInclude(e => e.Department)
                 .Include(t => t.Priority)
                 .Include(t => t.Status)
                 .AsQueryable();
@@ -67,7 +69,7 @@ namespace WorkTicketManager.Controllers
                 query = query.Where(t => t.Status.Code == filter.StatusCode);
 
             if (filter.DepartmentId.HasValue)
-                query = query.Where(t => t.User.DepartmentId == filter.DepartmentId);
+                query = query.Where(t => t.Employee.DepartmentId == filter.DepartmentId);
 
             if (filter.PriorityId.HasValue)
                 query = query.Where(t => t.PriorityId == filter.PriorityId);
@@ -98,16 +100,18 @@ namespace WorkTicketManager.Controllers
         // =====================
         // POST: Create Ticket
         // =====================
-
         [HttpPost]
+        [AllowAnonymous]
         [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("tickets")]
         public async Task<ActionResult<TicketDto>> CreateTicket([FromBody] CreatedTicketDto dto)
         {
-            if (!await _context.Users.AnyAsync(u => u.Id == dto.UserId))
-                return BadRequest("Invalid user");
+            var employee = await _context.Employees
+                .Include(e => e.Department)
+                .FirstOrDefaultAsync(e => e.Id == dto.UserId);
 
-            //if (!await _context.Priorities.AnyAsync(p => p.Id == dto.PriorityId))
-            //    return BadRequest("Invalid priority");
+            if (employee == null)
+                return BadRequest("Invalid employee");
+
             if (dto.PriorityId.HasValue && !await _context.Priorities.AnyAsync(p => p.Id == dto.PriorityId))
                 return BadRequest("Invalid priority");
 
@@ -120,7 +124,8 @@ namespace WorkTicketManager.Controllers
             var ticket = new Ticket
             {
                 CreatedAt = DateTime.UtcNow,
-                UserId = dto.UserId,
+                EmployeeId = employee.Id,
+                CompanyId = employee.Department?.CompanyId ?? 0,
                 PriorityId = dto.PriorityId,
                 StatusId = newStatus.Id,
                 ProblemDescription = dto.ProblemDescription,
@@ -131,20 +136,13 @@ namespace WorkTicketManager.Controllers
             _context.Tickets.Add(ticket);
             await _context.SaveChangesAsync();
 
-            // ВАЖНО: перечитать тикет с навигациями
             var createdTicket = await FindTicketAsync(ticket.Id);
-
-            return CreatedAtAction(
-                nameof(GetTicketById),
-                new { id = ticket.Id },
-                ToDto(createdTicket!)
-            );
+            return CreatedAtAction(nameof(GetTicketById), new { id = ticket.Id }, ToDto(createdTicket!));
         }
 
         // =====================
         // DELETE: Delete Ticket
         // =====================
-
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTicket(int id)
         {
@@ -171,7 +169,6 @@ namespace WorkTicketManager.Controllers
                 return BadRequest("Only NEW tickets can be started");
 
             var inProgressStatus = await _context.Statuses.SingleAsync(s => s.Code == "IN_PROGRESS");
-
             ticket.StatusId = inProgressStatus.Id;
             ticket.StartedAt = DateTime.UtcNow;
 
@@ -196,7 +193,6 @@ namespace WorkTicketManager.Controllers
                 return BadRequest("Only IN_PROGRESS tickets can be closed");
 
             var closedStatus = await _context.Statuses.SingleAsync(s => s.Code == "CLOSED");
-
             ticket.StatusId = closedStatus.Id;
             ticket.CompletedAt = DateTime.UtcNow;
             ticket.Resolution = dto.Resolution;
@@ -206,7 +202,7 @@ namespace WorkTicketManager.Controllers
         }
 
         // =====================
-        // PATCH: Close Ticket
+        // PATCH: Update Priority
         // =====================
         [HttpPatch("{id}/priority")]
         public async Task<IActionResult> UpdatePriority(int id, [FromBody] UpdatePriorityDto dto)
@@ -251,23 +247,23 @@ namespace WorkTicketManager.Controllers
             if (ticket == null)
                 return NotFound("Ticket not found");
 
-            // Описание проблемы
             if (dto.ProblemDescription != null)
                 ticket.ProblemDescription = dto.ProblemDescription.Trim();
 
-            // Сотрудник/отдел
             if (dto.UserId.HasValue)
             {
-                if (!await _context.Users.AnyAsync(u => u.Id == dto.UserId))
-                    return BadRequest("Invalid user");
-                ticket.UserId = dto.UserId.Value;
+                var employee = await _context.Employees
+                    .Include(e => e.Department)
+                    .FirstOrDefaultAsync(e => e.Id == dto.UserId);
+                if (employee == null)
+                    return BadRequest("Invalid employee");
+                ticket.EmployeeId = employee.Id;
+                ticket.CompanyId = employee.Department?.CompanyId ?? ticket.CompanyId;
             }
 
-            // Решение
             if (dto.Resolution != null)
                 ticket.Resolution = dto.Resolution.Trim();
 
-            // Статус вручную
             if (dto.StatusCode != null)
             {
                 var status = await _context.Statuses.SingleOrDefaultAsync(s => s.Code == dto.StatusCode);
@@ -275,7 +271,6 @@ namespace WorkTicketManager.Controllers
                     return BadRequest("Invalid status");
                 ticket.StatusId = status.Id;
 
-                // Обновляем даты при смене статуса
                 if (dto.StatusCode == "IN_PROGRESS" && ticket.StartedAt == null)
                     ticket.StartedAt = DateTime.UtcNow;
                 if (dto.StatusCode == "CLOSED" && ticket.CompletedAt == null)
@@ -288,7 +283,6 @@ namespace WorkTicketManager.Controllers
             }
 
             await _context.SaveChangesAsync();
-
             var updated = await FindTicketAsync(id);
             return Ok(ToDto(updated!));
         }

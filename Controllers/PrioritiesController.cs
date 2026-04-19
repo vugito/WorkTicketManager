@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WorkTicketManager.Data;
 using WorkTicketManager.DTOs;
@@ -8,6 +9,7 @@ namespace WorkTicketManager.Controllers
 {
     [ApiController]
     [Route("api/priorities")]
+    [Authorize] // ← весь контроллер защищён
     public class PrioritiesController : ControllerBase
     {
         private readonly WMDbContext _context;
