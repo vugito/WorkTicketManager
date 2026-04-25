@@ -64,6 +64,7 @@ namespace HelpdeskWM
                 });
             });
 
+
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(c =>
             {

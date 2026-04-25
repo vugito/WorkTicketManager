@@ -286,5 +286,25 @@ namespace WorkTicketManager.Controllers
             var updated = await FindTicketAsync(id);
             return Ok(ToDto(updated!));
         }
+
+        // GET: /api/tickets/my — тикеты текущего сотрудника
+        [HttpGet("my")]
+        public async Task<ActionResult<IEnumerable<TicketDto>>> GetMyTickets()
+        {
+            var employeeIdClaim = User.FindFirst("employeeId")?.Value;
+            if (string.IsNullOrEmpty(employeeIdClaim) || !int.TryParse(employeeIdClaim, out var employeeId))
+                return Forbid();
+
+            var tickets = await _context.Tickets
+                .Include(t => t.Employee).ThenInclude(e => e.Department)
+                .Include(t => t.Priority)
+                .Include(t => t.Status)
+                .Where(t => t.EmployeeId == employeeId)
+                .OrderByDescending(t => t.CreatedAt)
+                .ToListAsync();
+
+            return Ok(tickets.Select(ToDto));
+        }
+
     }
 }

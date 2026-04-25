@@ -17,6 +17,8 @@ namespace WorkTicketManager.Data
         public DbSet<Ticket> Tickets => Set<Ticket>();
         public DbSet<TicketComment> TicketComments => Set<TicketComment>();
 
+        public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -109,6 +111,12 @@ namespace WorkTicketManager.Data
                 .HasOne(c => c.Ticket)
                 .WithMany(t => t.Comments)
                 .HasForeignKey(c => c.TicketId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<RefreshToken>()
+                .HasOne(r => r.AppUser)
+                .WithMany(u => u.RefreshTokens)
+                .HasForeignKey(r => r.AppUserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // =====================
